@@ -1,0 +1,5 @@
+{
+  "name": "Apple Calendar Batch Event",
+  "description": "A modern tool to batch generate calendar events for work or vacation using smart scheduling.",
+  "requestFramePermissions": []
+}
