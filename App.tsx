@@ -188,10 +188,24 @@ const App: React.FC = () => {
       {/* Header */}
       <header className="bg-slate-900/80 backdrop-blur-md border-b border-slate-800 sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="bg-blue-600 p-2 rounded-lg text-white shadow-lg shadow-blue-900/20">
-              <CalendarCheck size={24} />
-            </div>
+          <div className="flex items-center gap-3">
+            {/* Inline SVG Logo to ensure rendering */}
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" className="w-10 h-10">
+                <defs>
+                    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#2563eb" stopOpacity="1" />
+                    <stop offset="100%" stopColor="#1e3a8a" stopOpacity="1" />
+                    </linearGradient>
+                    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow dx="0" dy="10" stdDeviation="10" floodOpacity="0.3"/>
+                    </filter>
+                </defs>
+                <rect x="64" y="64" width="384" height="384" rx="96" fill="url(#grad1)" filter="url(#shadow)" />
+                <rect x="150" y="140" width="212" height="240" rx="24" fill="white" fillOpacity="0.3" />
+                <rect x="128" y="160" width="256" height="240" rx="24" fill="white" />
+                <path d="M128 184a24 24 0 0 1 24-24h208a24 24 0 0 1 24 24v32H128z" fill="#ef4444" />
+                <path d="M190 300l45 45 95-95" stroke="#2563eb" strokeWidth="40" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
             <div>
               <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-blue-200">
                 Apple Calendar Batch Event
@@ -200,7 +214,7 @@ const App: React.FC = () => {
             </div>
           </div>
           <span className="text-sm font-medium text-slate-500">
-            v1.6.6
+            v1.6.8
           </span>
         </div>
       </header>
