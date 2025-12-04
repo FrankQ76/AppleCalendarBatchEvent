@@ -1,11 +1,10 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { Calendar, Clock, Download, Sparkles, Trash2, CalendarCheck, FileText, Bell, Plus, Pencil, X, Check, Save, AlertCircle } from 'lucide-react';
+import { Calendar, Clock, Download, Trash2, CalendarCheck, FileText, Bell, Plus, Pencil, X, Check, Save, AlertCircle } from 'lucide-react';
 import CalendarGrid from './components/CalendarGrid';
 import { BatchConfig, TimePreset } from './types';
 import { isSameDay, formatDisplayDate } from './utils/dateUtils';
 import { generateICSContent, downloadICS } from './utils/icsUtils';
-import { enhanceReason } from './services/geminiService';
 
 const DEFAULT_PRESETS: TimePreset[] = [
   { id: '1', label: 'Work', startTime: '09:00', endTime: '17:00', alert: 'none', alert2: 'none', isAllDay: false },
@@ -24,7 +23,6 @@ const App: React.FC = () => {
   });
 
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
-  const [isEnhancing, setIsEnhancing] = useState(false);
   const [presets, setPresets] = useState<TimePreset[]>([]);
   const [editingPresetId, setEditingPresetId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<TimePreset | null>(null);
@@ -74,14 +72,6 @@ const App: React.FC = () => {
       }
     });
   }, []);
-
-  const handleEnhanceReason = async () => {
-    if (!config.reason) return;
-    setIsEnhancing(true);
-    const improved = await enhanceReason(config.reason);
-    setConfig((prev) => ({ ...prev, reason: improved }));
-    setIsEnhancing(false);
-  };
 
   const handleDownload = () => {
     if (selectedDates.length === 0) {
@@ -210,7 +200,7 @@ const App: React.FC = () => {
             </div>
           </div>
           <span className="text-sm font-medium text-slate-500">
-            v1.6.5
+            v1.6.6
           </span>
         </div>
       </header>
@@ -236,19 +226,8 @@ const App: React.FC = () => {
                     value={config.reason}
                     onChange={handleInputChange}
                     placeholder="e.g. Work, Vacation"
-                    className="w-full pl-3 pr-10 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all placeholder-slate-600"
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all placeholder-slate-600"
                   />
-                  <button
-                    type="button"
-                    onClick={handleEnhanceReason}
-                    disabled={isEnhancing || !config.reason}
-                    className={`absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md transition-colors ${
-                      isEnhancing ? 'text-blue-400 animate-pulse' : 'text-slate-500 hover:text-blue-400 hover:bg-slate-800'
-                    }`}
-                    title="Enhance with AI"
-                  >
-                    <Sparkles size={16} />
-                  </button>
                 </div>
               </div>
 
