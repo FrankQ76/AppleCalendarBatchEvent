@@ -1,10 +1,9 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { Calendar, Clock, Download, Trash2, CalendarCheck, FileText, Bell, Plus, Pencil, X, Check, Save, AlertCircle } from 'lucide-react';
-import CalendarGrid from './components/CalendarGrid';
-import { BatchConfig, TimePreset } from './types';
-import { isSameDay, formatDisplayDate } from './utils/dateUtils';
-import { generateICSContent, downloadICS } from './utils/icsUtils';
+import CalendarGrid from './components/CalendarGrid.tsx';
+import { BatchConfig, TimePreset } from './types.ts';
+import { isSameDay, formatDisplayDate } from './utils/dateUtils.ts';
+import { generateICSContent, downloadICS } from './utils/icsUtils.ts';
 
 const DEFAULT_PRESETS: TimePreset[] = [
   { id: '1', label: 'Work', startTime: '09:00', endTime: '17:00', alert: 'none', alert2: 'none', isAllDay: false },

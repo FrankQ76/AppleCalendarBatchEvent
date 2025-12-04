@@ -1,6 +1,5 @@
-
-import { formatDateForICS, formatDateOnlyForICS } from './dateUtils';
-import { BatchConfig } from '../types';
+import { formatDateForICS, formatDateOnlyForICS } from './dateUtils.ts';
+import { BatchConfig } from '../types.ts';
 
 export const generateICSContent = (
   selectedDates: Date[],

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { getDaysInMonth, isSameDay, getMonthName } from '../utils/dateUtils';
+import { getDaysInMonth, isSameDay, getMonthName } from '../utils/dateUtils.ts';
 
 interface CalendarGridProps {
   selectedDates: Date[];
