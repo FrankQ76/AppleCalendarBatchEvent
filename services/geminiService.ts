@@ -1,5 +1,1 @@
-
-// Service removed as requested.
-export const enhanceReason = async (input: string): Promise<string> => {
-  return input;
-};
+// File removed. Logic moved to index.html

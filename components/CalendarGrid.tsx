@@ -1,1 +1,1 @@
-// This code has been moved to index.html to support GitHub Pages deployment without a build step.
+// File removed. Logic moved to index.html
