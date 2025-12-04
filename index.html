@@ -4,25 +4,856 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Apple Calendar Batch Event</title>
-    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cdefs%3E%3ClinearGradient id='grad1' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%232563eb;stop-opacity:1' /%3E%3Cstop offset='100%25' style='stop-color:%231e3a8a;stop-opacity:1' /%3E%3C/linearGradient%3E%3Cfilter id='shadow' x='-20%25' y='-20%25' width='140%25' height='140%25'%3E%3CfeDropShadow dx='0' dy='10' stdDeviation='10' flood-opacity='0.3'/%3E%3C/filter%3E%3C/defs%3E%3Crect x='64' y='64' width='384' height='384' rx='96' fill='url(%23grad1)' filter='url(%23shadow)' /%3E%3Crect x='150' y='140' width='212' height='240' rx='24' fill='white' fill-opacity='0.3' /%3E%3Crect x='128' y='160' width='256' height='240' rx='24' fill='white' /%3E%3Cpath d='M128 184a24 24 0 0 1 24-24h208a24 24 0 0 1 24 24v32H128z' fill='%23ef4444' /%3E%3Cpath d='M190 300l45 45 95-95' stroke='%232563eb' stroke-width='40' fill='none' stroke-linecap='round' stroke-linejoin='round' /%3E%3C/svg%3E" />
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Babel for in-browser JSX compilation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Import Map for External Libraries -->
     <script type="importmap">
     {
       "imports": {
-        "lucide-react": "https://esm.sh/lucide-react@0.344.0",
-        "react": "https://esm.sh/react@18.3.1",
-        "react/": "https://esm.sh/react@18.3.1/",
-        "react-dom": "https://esm.sh/react-dom@18.3.1",
-        "react-dom/": "https://esm.sh/react-dom@18.3.1/"
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+        "lucide-react": "https://esm.sh/lucide-react@0.344.0"
       }
     }
     </script>
-    <!-- Babel for in-browser compilation of TSX -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <script>
+      // Suppress the "You are using the in-browser Babel transformer" warning
+      const originalWarn = console.warn;
+      console.warn = function(...args) {
+        if (args[0] && typeof args[0] === 'string' && args[0].includes('in-browser Babel transformer')) return;
+        originalWarn.apply(console, args);
+      };
+    </script>
   </head>
   <body class="bg-slate-950 text-slate-100 antialiased" style="color-scheme: dark;">
     <div id="root"></div>
-    <!-- Load the application entry point -->
-    <script type="text/babel" data-type="module" src="./index.tsx"></script>
+
+    <!-- MAIN APPLICATION SCRIPT -->
+    <script type="text/babel" data-type="module">
+      import React, { useState, useCallback, useEffect } from 'react';
+      import ReactDOM from 'react-dom/client';
+      import { 
+        Calendar, Clock, Download, Trash2, CalendarCheck, FileText, 
+        Bell, Plus, Pencil, X, Check, Save, AlertCircle, ChevronLeft, ChevronRight 
+      } from 'lucide-react';
+
+      // --- DATE UTILS ---
+      const getDaysInMonth = (year, month) => {
+        const date = new Date(year, month, 1);
+        const days = [];
+        while (date.getMonth() === month) {
+          days.push(new Date(date));
+          date.setDate(date.getDate() + 1);
+        }
+        return days;
+      };
+
+      const formatDateForICS = (date) => {
+        const pad = (n) => (n < 10 ? `0${n}` : n);
+        return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}T${pad(
+          date.getHours()
+        )}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+      };
+
+      const formatDateOnlyForICS = (date) => {
+        const pad = (n) => (n < 10 ? `0${n}` : n);
+        return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}`;
+      };
+
+      const isSameDay = (d1, d2) => {
+        return (
+          d1.getFullYear() === d2.getFullYear() &&
+          d1.getMonth() === d2.getMonth() &&
+          d1.getDate() === d2.getDate()
+        );
+      };
+
+      const formatDisplayDate = (date) => {
+        return date.toLocaleDateString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+        });
+      };
+
+      const getMonthName = (year, month) => {
+        return new Date(year, month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      };
+
+      // --- ICS UTILS ---
+      const generateICSContent = (selectedDates, config) => {
+        const { reason, startTime, endTime, alert, alert2, isAllDay } = config;
+
+        let icsContent = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//AppleCalendarBatchEvent//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:Batch Events
+`;
+
+        selectedDates.forEach((date) => {
+          const now = new Date();
+          
+          let dtStartLine = '';
+          let dtEndLine = '';
+
+          if (isAllDay) {
+              const eventStart = new Date(date);
+              const eventEnd = new Date(date);
+              eventEnd.setDate(eventEnd.getDate() + 1);
+
+              dtStartLine = `DTSTART;VALUE=DATE:${formatDateOnlyForICS(eventStart)}`;
+              dtEndLine = `DTEND;VALUE=DATE:${formatDateOnlyForICS(eventEnd)}`;
+          } else {
+              const [startH, startM] = (startTime || '09:00').split(':').map(Number);
+              const [endH, endM] = (endTime || '17:00').split(':').map(Number);
+
+              const eventStart = new Date(date);
+              eventStart.setHours(startH, startM, 0);
+
+              const eventEnd = new Date(date);
+              eventEnd.setHours(endH, endM, 0);
+
+              if (eventEnd < eventStart) {
+                  eventEnd.setDate(eventEnd.getDate() + 1);
+              }
+
+              dtStartLine = `DTSTART:${formatDateForICS(eventStart)}`;
+              dtEndLine = `DTEND:${formatDateForICS(eventEnd)}`;
+          }
+
+          icsContent += `BEGIN:VEVENT
+DTSTAMP:${formatDateForICS(now)}Z
+${dtStartLine}
+${dtEndLine}
+SUMMARY:${reason || 'Busy'}
+DESCRIPTION:Generated by Apple Calendar Batch Event
+STATUS:CONFIRMED
+SEQUENCE:0
+TRANSP:${isAllDay ? 'TRANSPARENT' : 'OPAQUE'}
+`;
+
+          if (alert && alert !== 'none') {
+            icsContent += `BEGIN:VALARM
+ACTION:DISPLAY
+DESCRIPTION:${reason || 'Busy'}
+TRIGGER:${alert}
+END:VALARM
+`;
+          }
+
+          if (alert2 && alert2 !== 'none') {
+            icsContent += `BEGIN:VALARM
+ACTION:DISPLAY
+DESCRIPTION:${reason || 'Busy'}
+TRIGGER:${alert2}
+END:VALARM
+`;
+          }
+
+          icsContent += `END:VEVENT
+`;
+        });
+
+        icsContent += `END:VCALENDAR`;
+        return icsContent;
+      };
+
+      const downloadICS = (content, filename) => {
+        const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `${filename}.ics`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      };
+
+      // --- COMPONENTS ---
+
+      // Calendar Grid Component
+      const CalendarGrid = ({ selectedDates, onToggleDate }) => {
+        const today = new Date();
+        const [currentMonth, setCurrentMonth] = useState(today.getMonth());
+        const [currentYear, setCurrentYear] = useState(today.getFullYear());
+
+        const days = getDaysInMonth(currentYear, currentMonth);
+        const startDayOfWeek = days[0].getDay(); // 0 = Sunday
+        const emptySlots = Array(startDayOfWeek).fill(null);
+
+        const handlePrevMonth = () => {
+          if (currentMonth === 0) {
+            setCurrentMonth(11);
+            setCurrentYear(currentYear - 1);
+          } else {
+            setCurrentMonth(currentMonth - 1);
+          }
+        };
+
+        const handleNextMonth = () => {
+          if (currentMonth === 11) {
+            setCurrentMonth(0);
+            setCurrentYear(currentYear + 1);
+          } else {
+            setCurrentMonth(currentMonth + 1);
+          }
+        };
+
+        const isSelected = (date) => selectedDates.some((d) => isSameDay(d, date));
+
+        return (
+          <div className="bg-slate-900 rounded-2xl shadow-sm border border-slate-800 overflow-hidden">
+            <div className="flex items-center justify-between p-4 bg-slate-900 border-b border-slate-800">
+              <button
+                onClick={handlePrevMonth}
+                className="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-400 hover:text-slate-200"
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <h3 className="text-lg font-semibold text-slate-100">
+                {getMonthName(currentYear, currentMonth)}
+              </h3>
+              <button
+                onClick={handleNextMonth}
+                className="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-400 hover:text-slate-200"
+              >
+                <ChevronRight size={20} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-7 text-center text-xs font-medium text-slate-500 py-2 border-b border-slate-800">
+              <div>Sun</div>
+              <div>Mon</div>
+              <div>Tue</div>
+              <div>Wed</div>
+              <div>Thu</div>
+              <div>Fri</div>
+              <div>Sat</div>
+            </div>
+
+            <div className="grid grid-cols-7 p-2 gap-1">
+              {emptySlots.map((_, i) => (
+                <div key={`empty-${i}`} className="aspect-square" />
+              ))}
+              {days.map((date) => {
+                const selected = isSelected(date);
+                const isToday = isSameDay(date, new Date());
+                return (
+                  <button
+                    key={date.toISOString()}
+                    onClick={() => onToggleDate(date)}
+                    className={`
+                      aspect-square rounded-lg flex flex-col items-center justify-center text-sm transition-all duration-200
+                      ${
+                        selected
+                          ? 'bg-blue-600 text-white shadow-md shadow-blue-900/50 scale-105'
+                          : 'text-slate-300 hover:bg-slate-800'
+                      }
+                      ${isToday && !selected ? 'ring-2 ring-blue-500/50 font-bold text-blue-400' : ''}
+                    `}
+                  >
+                    <span>{date.getDate()}</span>
+                    {selected && <div className="w-1 h-1 bg-white rounded-full mt-1 opacity-50"></div>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      };
+
+      // --- MAIN APP COMPONENT ---
+      const DEFAULT_PRESETS = [
+        { id: '1', label: 'Work', startTime: '09:00', endTime: '17:00', alert: 'none', alert2: 'none', isAllDay: false },
+        { id: '2', label: 'Morning Work', startTime: '09:00', endTime: '13:00', alert: 'none', alert2: 'none', isAllDay: false },
+        { id: '3', label: 'Vacation', startTime: '09:00', endTime: '18:00', alert: 'none', alert2: 'none', isAllDay: true },
+      ];
+
+      const App = () => {
+        const [config, setConfig] = useState({
+          reason: '',
+          startTime: '09:00',
+          endTime: '17:00',
+          alert: 'none',
+          alert2: 'none',
+          isAllDay: false,
+        });
+
+        const [selectedDates, setSelectedDates] = useState([]);
+        const [presets, setPresets] = useState([]);
+        const [editingPresetId, setEditingPresetId] = useState(null);
+        const [editForm, setEditForm] = useState(null);
+        const [isAddingPreset, setIsAddingPreset] = useState(false);
+        const [newPresetLabel, setNewPresetLabel] = useState('');
+        const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+
+        // Safe Load from LocalStorage
+        useEffect(() => {
+          const saved = localStorage.getItem('apple_cal_batch_presets');
+          if (saved) {
+            try {
+              const parsed = JSON.parse(saved);
+              // Migrate/Validate data to prevent crashes
+              const validPresets = Array.isArray(parsed) ? parsed.map(p => ({
+                id: p.id || Math.random().toString(),
+                label: p.label || p.reason || 'Saved Event',
+                startTime: p.startTime || '09:00',
+                endTime: p.endTime || '17:00',
+                alert: p.alert || 'none',
+                alert2: p.alert2 || 'none',
+                isAllDay: !!p.isAllDay
+              })) : DEFAULT_PRESETS;
+              setPresets(validPresets);
+            } catch (e) {
+              console.error("Failed to load presets", e);
+              setPresets(DEFAULT_PRESETS);
+            }
+          } else {
+            setPresets(DEFAULT_PRESETS);
+          }
+        }, []);
+
+        useEffect(() => {
+          if (presets.length > 0) {
+            localStorage.setItem('apple_cal_batch_presets', JSON.stringify(presets));
+          }
+        }, [presets]);
+
+        const handleInputChange = (e) => {
+          const { name, value, type, checked: isChecked } = e.target;
+          if (type === 'checkbox') {
+              setConfig((prev) => ({ ...prev, [name]: isChecked }));
+          } else {
+              setConfig((prev) => ({ ...prev, [name]: value }));
+          }
+        };
+
+        const toggleDate = useCallback((date) => {
+          setSelectedDates((prev) => {
+            const exists = prev.find((d) => isSameDay(d, date));
+            if (exists) {
+              return prev.filter((d) => !isSameDay(d, date));
+            } else {
+              return [...prev, date].sort((a, b) => a.getTime() - b.getTime());
+            }
+          });
+        }, []);
+
+        const handleDownload = () => {
+          if (selectedDates.length === 0) {
+            alert('Please select at least one date.');
+            return;
+          }
+          const icsContent = generateICSContent(selectedDates, config);
+          const filename = (config.reason || 'batch_calendar_export').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+          downloadICS(icsContent, filename);
+        };
+
+        const clearDates = () => setSelectedDates([]);
+
+        const applyPreset = (preset, e) => {
+          if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+          setConfig((prev) => ({
+            ...prev,
+            reason: preset.label,
+            startTime: preset.startTime,
+            endTime: preset.endTime,
+            alert: preset.alert || 'none',
+            alert2: preset.alert2 || 'none',
+            isAllDay: !!preset.isAllDay,
+          }));
+        };
+
+        const startAddingPreset = () => {
+          setIsAddingPreset(true);
+          setNewPresetLabel(config.reason || '');
+        };
+
+        const cancelAddingPreset = () => {
+          setIsAddingPreset(false);
+          setNewPresetLabel('');
+        };
+
+        const saveNewPreset = () => {
+          if (!newPresetLabel.trim()) return;
+          const newPreset = {
+            id: Date.now().toString(),
+            label: newPresetLabel,
+            startTime: config.startTime,
+            endTime: config.endTime,
+            alert: config.alert,
+            alert2: config.alert2,
+            isAllDay: config.isAllDay,
+          };
+          setPresets((prev) => [...prev, newPreset]);
+          setIsAddingPreset(false);
+        };
+
+        const handleDeleteClick = (id, e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (deleteConfirmId === id) {
+            setPresets((prev) => prev.filter((p) => p.id !== id));
+            setDeleteConfirmId(null);
+          } else {
+            setDeleteConfirmId(id);
+            setTimeout(() => {
+              setDeleteConfirmId((current) => current === id ? null : current);
+            }, 3000);
+          }
+        };
+
+        const startEditingPreset = (preset, e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setDeleteConfirmId(null);
+          setEditingPresetId(preset.id);
+          setEditForm({
+            alert: 'none',
+            alert2: 'none',
+            isAllDay: false,
+            ...preset
+          });
+        };
+
+        const cancelEditingPreset = () => {
+          setEditingPresetId(null);
+          setEditForm(null);
+        };
+
+        const saveEditedPreset = () => {
+          if (!editForm || !editForm.label.trim()) return;
+          setPresets((prev) => prev.map((p) => (p.id === editForm.id ? editForm : p)));
+          setEditingPresetId(null);
+          setEditForm(null);
+        };
+
+        const handleEditFormChange = (e) => {
+          if (!editForm) return;
+          const { name, value, type, checked: isChecked } = e.target;
+          if (type === 'checkbox') {
+              setEditForm({ ...editForm, [name]: isChecked });
+          } else {
+              setEditForm({ ...editForm, [name]: value });
+          }
+        };
+
+        return (
+          <div className="min-h-screen bg-slate-950 text-slate-100 pb-20">
+            {/* Header */}
+            <header className="bg-slate-900/80 backdrop-blur-md border-b border-slate-800 sticky top-0 z-50">
+              <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" className="w-10 h-10">
+                        <defs>
+                            <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="#2563eb" stopOpacity="1" />
+                            <stop offset="100%" stopColor="#1e3a8a" stopOpacity="1" />
+                            </linearGradient>
+                            <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+                            <feDropShadow dx="0" dy="10" stdDeviation="10" floodOpacity="0.3"/>
+                            </filter>
+                        </defs>
+                        <rect x="64" y="64" width="384" height="384" rx="96" fill="url(#grad1)" filter="url(#shadow)" />
+                        <rect x="150" y="140" width="212" height="240" rx="24" fill="white" fillOpacity="0.3" />
+                        <rect x="128" y="160" width="256" height="240" rx="24" fill="white" />
+                        <path d="M128 184a24 24 0 0 1 24-24h208a24 24 0 0 1 24 24v32H128z" fill="#ef4444" />
+                        <path d="M190 300l45 45 95-95" stroke="#2563eb" strokeWidth="40" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  <div>
+                    <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-blue-200">
+                      Apple Calendar Batch Event
+                    </h1>
+                    <p className="text-xs text-slate-400">ICS Generator</p>
+                  </div>
+                </div>
+                <span className="text-sm font-medium text-slate-500">v1.6.8</span>
+              </div>
+            </header>
+
+            <main className="max-w-4xl mx-auto px-4 py-8 grid grid-cols-1 md:grid-cols-12 gap-8">
+              
+              {/* Left Column: Configuration */}
+              <div className="md:col-span-5 space-y-6">
+                <section className="bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-800 space-y-6">
+                  <div className="space-y-4">
+                    <h2 className="text-lg font-semibold flex items-center gap-2 text-slate-100">
+                      <FileText size={18} className="text-blue-400" />
+                      Event Details
+                    </h2>
+                    
+                    {/* Reason Input */}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-400 mb-1">Event Title</label>
+                      <input
+                        type="text"
+                        name="reason"
+                        value={config.reason}
+                        onChange={handleInputChange}
+                        placeholder="e.g. Work, Vacation"
+                        className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all placeholder-slate-600"
+                      />
+                    </div>
+
+                    {/* Time Range */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                          <label className="text-sm font-medium text-slate-400 flex items-center gap-1">
+                              <Clock size={14} /> Time Range
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer group">
+                              <div className="relative">
+                                  <input 
+                                      type="checkbox" 
+                                      name="isAllDay"
+                                      checked={config.isAllDay}
+                                      onChange={handleInputChange}
+                                      className="sr-only peer"
+                                  />
+                                  <div className="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                              </div>
+                              <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors">All Day</span>
+                          </label>
+                      </div>
+
+                      {!config.isAllDay ? (
+                          <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-1 duration-200">
+                              <div>
+                              <label className="block text-xs text-slate-500 mb-1">Start Time</label>
+                              <input
+                                  type="time"
+                                  name="startTime"
+                                  value={config.startTime}
+                                  onChange={handleInputChange}
+                                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none placeholder-slate-600"
+                              />
+                              </div>
+                              <div>
+                              <label className="block text-xs text-slate-500 mb-1">End Time</label>
+                              <input
+                                  type="time"
+                                  name="endTime"
+                                  value={config.endTime}
+                                  onChange={handleInputChange}
+                                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none placeholder-slate-600"
+                              />
+                              </div>
+                          </div>
+                      ) : (
+                          <div className="p-3 bg-slate-950 border border-slate-800 rounded-lg text-center text-xs text-slate-500 animate-in fade-in zoom-in-95 duration-200">
+                              Event will be set for the entire day
+                          </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="border-t border-slate-800 my-4"></div>
+
+                  {/* Presets Section */}
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-semibold text-slate-300">Saved Events</h3>
+                      {!isAddingPreset && (
+                        <button 
+                          type="button"
+                          onClick={startAddingPreset}
+                          className="text-xs flex items-center gap-1 text-blue-400 hover:text-blue-300 transition-colors"
+                        >
+                          <Save size={12} /> Save Current
+                        </button>
+                      )}
+                    </div>
+
+                    {isAddingPreset && (
+                      <div className="mb-3 p-3 bg-slate-950 rounded-lg border border-blue-900/50 animate-in fade-in slide-in-from-top-2">
+                        <label className="block text-xs text-slate-500 mb-1">Saved Event Name</label>
+                        <div className="flex gap-2">
+                          <input
+                              type="text"
+                              value={newPresetLabel}
+                              onChange={(e) => setNewPresetLabel(e.target.value)}
+                              placeholder="e.g. Work, Vacation"
+                              className="flex-1 px-2 py-1 text-sm bg-slate-900 border border-slate-700 rounded text-slate-100 focus:border-blue-500 outline-none"
+                              autoFocus
+                          />
+                          <button type="button" onClick={saveNewPreset} className="p-1.5 bg-blue-600 text-white rounded hover:bg-blue-500">
+                            <Check size={14} />
+                          </button>
+                          <button type="button" onClick={cancelAddingPreset} className="p-1.5 bg-slate-800 text-slate-400 rounded hover:bg-slate-700">
+                            <X size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1 custom-scrollbar">
+                      {presets.map((preset) => (
+                        <div key={preset.id} className="relative group">
+                          {editingPresetId === preset.id && editForm ? (
+                            <div className="p-2 bg-slate-800 rounded-lg border border-blue-500/50 flex flex-col gap-2 z-40 relative">
+                              <input
+                                type="text"
+                                name="label"
+                                value={editForm.label}
+                                onChange={handleEditFormChange}
+                                className="w-full px-2 py-1 text-sm bg-slate-900 border border-slate-700 rounded text-slate-100 outline-none focus:border-blue-500"
+                                placeholder="Event Title"
+                              />
+                              <div className="flex items-center gap-2">
+                                  <input 
+                                      type="checkbox" 
+                                      name="isAllDay"
+                                      checked={editForm.isAllDay}
+                                      onChange={handleEditFormChange}
+                                      className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-blue-600"
+                                  />
+                                  <span className="text-xs text-slate-400">All Day</span>
+                              </div>
+                              {!editForm.isAllDay && (
+                                  <div className="flex gap-2">
+                                  <input
+                                      type="time"
+                                      name="startTime"
+                                      value={editForm.startTime}
+                                      onChange={handleEditFormChange}
+                                      className="flex-1 px-2 py-1 text-xs bg-slate-900 border border-slate-700 rounded text-slate-100"
+                                  />
+                                  <input
+                                      type="time"
+                                      name="endTime"
+                                      value={editForm.endTime}
+                                      onChange={handleEditFormChange}
+                                      className="flex-1 px-2 py-1 text-xs bg-slate-900 border border-slate-700 rounded text-slate-100"
+                                  />
+                                  </div>
+                              )}
+                              <div className="flex justify-end gap-2 mt-1">
+                                <button type="button" onClick={saveEditedPreset} className="px-2 py-1 bg-blue-600 text-xs text-white rounded hover:bg-blue-500">Save</button>
+                                <button type="button" onClick={cancelEditingPreset} className="px-2 py-1 bg-slate-700 text-xs text-slate-300 rounded hover:bg-slate-600">Cancel</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="relative w-full flex items-center justify-between p-2.5 rounded-lg border border-slate-800 bg-slate-950 overflow-hidden">
+                              <button
+                                  type="button"
+                                  onClick={(e) => applyPreset(preset, e)}
+                                  className="absolute inset-0 w-full h-full text-left bg-transparent hover:bg-slate-900 transition-colors z-0 focus:outline-none focus:bg-slate-900"
+                              >
+                                  <span className="sr-only">Select {preset.label}</span>
+                              </button>
+
+                              <div className="relative z-10 flex-1 pr-2 pointer-events-none">
+                                <div className="text-sm font-medium text-slate-200">{preset.label}</div>
+                                <div className="text-xs text-slate-500 font-mono mt-0.5">
+                                  {preset.isAllDay ? 'All Day' : `${preset.startTime} - ${preset.endTime}`}
+                                </div>
+                              </div>
+                              
+                              <div className="relative z-30 flex items-center gap-1 pointer-events-auto">
+                                <button
+                                  type="button"
+                                  onClick={(e) => applyPreset(preset, e)}
+                                  className="px-3 py-1.5 bg-blue-500/10 text-blue-400 hover:bg-blue-600 hover:text-white rounded text-xs font-medium transition-colors mr-1 cursor-pointer"
+                                >
+                                  Select
+                                </button>
+
+                                <div className="flex items-center gap-1 border-l border-slate-800 pl-2">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => startEditingPreset(preset, e)}
+                                      className="p-2 text-slate-500 hover:text-blue-400 rounded transition-colors cursor-pointer"
+                                      title="Edit"
+                                    >
+                                      <Pencil size={16} className="pointer-events-none" />
+                                    </button>
+                                    
+                                    <button
+                                      type="button"
+                                      onClick={(e) => handleDeleteClick(preset.id, e)}
+                                      className={`p-2 rounded transition-all cursor-pointer flex items-center justify-center ${
+                                        deleteConfirmId === preset.id 
+                                          ? 'bg-red-600 text-white hover:bg-red-700 w-[34px]' 
+                                          : 'text-slate-500 hover:text-red-400'
+                                      }`}
+                                      title={deleteConfirmId === preset.id ? 'Confirm Delete' : 'Delete'}
+                                    >
+                                      {deleteConfirmId === preset.id ? (
+                                        <AlertCircle size={16} className="pointer-events-none" />
+                                      ) : (
+                                        <Trash2 size={16} className="pointer-events-none" />
+                                      )}
+                                    </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="border-t border-slate-800 my-4"></div>
+
+                  {/* Alert Settings */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-400 mb-1 flex items-center gap-1">
+                        <Bell size={14} /> Alert 1
+                      </label>
+                      <div className="relative">
+                        <select
+                          name="alert"
+                          value={config.alert}
+                          onChange={handleInputChange}
+                          className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none appearance-none cursor-pointer"
+                        >
+                          <option value="none">None</option>
+                          <option value="PT0M">At time</option>
+                          <option value="-PT5M">5 min before</option>
+                          <option value="-PT10M">10 min before</option>
+                          <option value="-PT15M">15 min before</option>
+                          <option value="-PT30M">30 min before</option>
+                          <option value="-PT1H">1 hour before</option>
+                          <option value="-PT2H">2 hours before</option>
+                          <option value="-P1D">1 day before</option>
+                        </select>
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-slate-400 mb-1 flex items-center gap-1">
+                        <Bell size={14} /> Alert 2
+                      </label>
+                      <div className="relative">
+                        <select
+                          name="alert2"
+                          value={config.alert2}
+                          onChange={handleInputChange}
+                          className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none appearance-none cursor-pointer"
+                        >
+                          <option value="none">None</option>
+                          <option value="PT0M">At time</option>
+                          <option value="-PT5M">5 min before</option>
+                          <option value="-PT10M">10 min before</option>
+                          <option value="-PT15M">15 min before</option>
+                          <option value="-PT30M">30 min before</option>
+                          <option value="-PT1H">1 hour before</option>
+                          <option value="-PT2H">2 hours before</option>
+                          <option value="-P1D">1 day before</option>
+                        </select>
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                {/* Selected Dates Summary */}
+                <section className="bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-800">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-semibold flex items-center gap-2 text-slate-100">
+                      <Calendar size={18} className="text-blue-400" />
+                      Selected Dates
+                    </h2>
+                    <span className="bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded-full text-xs font-bold border border-blue-800/50">
+                      {selectedDates.length}
+                    </span>
+                  </div>
+                  
+                  {selectedDates.length === 0 ? (
+                    <div className="text-center py-6 text-slate-500 text-sm">
+                      No dates selected yet. <br/> Click dates on the calendar.
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
+                      {selectedDates.map((date) => (
+                        <div key={date.toISOString()} className="flex items-center justify-between text-sm p-2 bg-slate-950 rounded-lg border border-slate-800">
+                          <span className="font-medium text-slate-300">{formatDisplayDate(date)}</span>
+                          <button
+                            type="button"
+                            onClick={() => toggleDate(date)}
+                            className="text-slate-500 hover:text-red-400 transition-colors"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {selectedDates.length > 0 && (
+                      <button 
+                          type="button"
+                          onClick={clearDates} 
+                          className="mt-4 text-xs text-red-400 hover:text-red-300 hover:underline w-full text-center"
+                      >
+                          Clear all dates
+                      </button>
+                  )}
+                </section>
+              </div>
+
+              {/* Right Column: Calendar Selection */}
+              <div className="md:col-span-7 space-y-6">
+                <CalendarGrid
+                  selectedDates={selectedDates}
+                  onToggleDate={toggleDate}
+                />
+
+                {/* Action Area */}
+                <div className="flex flex-col sm:flex-row gap-4 items-center justify-end pt-4 border-t border-slate-800">
+                  <div className="text-sm text-slate-500 text-center sm:text-right hidden sm:block">
+                      Ready to export <br/>
+                      <span className="font-bold text-slate-200">{selectedDates.length} events</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleDownload}
+                    disabled={selectedDates.length === 0}
+                    className={`
+                      w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3 rounded-xl font-semibold shadow-lg transition-all transform active:scale-95
+                      ${
+                        selectedDates.length === 0
+                          ? 'bg-slate-800 text-slate-600 cursor-not-allowed shadow-none'
+                          : 'bg-blue-600 text-white hover:bg-blue-500 shadow-blue-500/20 hover:-translate-y-0.5'
+                      }
+                    `}
+                  >
+                    <Download size={20} />
+                    Download .ICS File
+                  </button>
+                </div>
+              </div>
+            </main>
+          </div>
+        );
+      };
+
+      const rootElement = document.getElementById('root');
+      if (rootElement) {
+        try {
+          const root = ReactDOM.createRoot(rootElement);
+          root.render(<App />);
+        } catch (error) {
+          console.error("Render Error:", error);
+          rootElement.innerHTML = `<div style="color:red; padding:20px;">Application Error: ${error.message}</div>`;
+        }
+      }
+    </script>
   </body>
 </html>
