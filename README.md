@@ -47,3 +47,7 @@ The application runs immediately in any modern browser.
 ## Browser Support
 
 Works on all modern browsers (Chrome, Safari, Edge, Firefox) on Desktop, iOS, and Android.
+
+## vistors 
+![visitors counter](https://komarev.com/ghpvc/?username=FrankQ76&label=Vues+du+profil&color=0e75b6&style=flat)
+
