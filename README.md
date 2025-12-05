@@ -49,5 +49,5 @@ The application runs immediately in any modern browser.
 Works on all modern browsers (Chrome, Safari, Edge, Firefox) on Desktop, iOS, and Android.
 
 ## vistors 
-![visitors counter](https://komarev.com/ghpvc/?username=FrankQ76&label=Vues+du+profil&color=0e75b6&style=flat)
+![visitors counter](https://komarev.com/ghpvc/?username=FrankQ76&label=PagesView&color=0e75b6&style=flat)
 
