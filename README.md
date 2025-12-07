@@ -1,4 +1,9 @@
+If my apps, tools, or experiments helped you learn, save time, or build something new, consider a small donation. 
+Your support fuels open projects, cleaner code, and fresh ideas shared with everyone.
+
 [![logo](https://volatilityfoundation.org/wp-content/uploads/2024/07/paypal-donate-black.jpg)](https://www.paypal.com/donate/?business=N35EVXRAXKN8C&no_recurring=0&item_name=Unlock+creativity+with+me%21+Transform+ideas+into+innovative+coding+projects.+Support+my+journey+for+digital+innovation.&currency_code=CAD)
+
+click here `👉` [For donation without fees](https://paypal.me/FranQ76/100)
 
 ---
 
