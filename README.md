@@ -1,3 +1,7 @@
+[![logo](https://volatilityfoundation.org/wp-content/uploads/2024/07/paypal-donate-black.jpg)](https://www.paypal.com/donate/?business=N35EVXRAXKN8C&no_recurring=0&item_name=Unlock+creativity+with+me%21+Transform+ideas+into+innovative+coding+projects.+Support+my+journey+for+digital+innovation.&currency_code=CAD)
+
+---
+
 # Apple Calendar Batch Event
 
 <p align="center">
